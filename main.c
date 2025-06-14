@@ -17,42 +17,27 @@
 #include <GL/glut.h>   // Funções da FreeGLUT
 #endif
 
-// SOIL é a biblioteca para leitura das imagens
 #include "SOIL.h"
 
-// Um pixel Pixel (24 bits)
+// Um pixel RGB (24 bits)
 typedef struct {
 	unsigned char r, g, b;
 } RGB;
 
-// Uma imagem Pixel
 typedef struct {
 	int width, height;
 	RGB *img;
 } Img;
 
-// Protótipos
 void load(char *name, Img *pic);
-
 void valida();
-
-// Funções da interface gráfica e OpenGL
 void init();
-
 void draw();
-
 void keyboard(unsigned char key, int x, int y);
 
-// Largura e altura da janela
 int width, height;
-
-// Identificadores de textura
 GLuint tex[2];
-
-// As 2 imagens
 Img pic[2];
-
-// Imagem selecionada (0,1)
 int sel;
 
 // Carrega uma imagem para a struct Img
@@ -72,41 +57,27 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 	glutInit(&argc, argv);
-
-	// Define do modo de operacao da GLUT
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 
 	// pic[0] -> imagem de entrada
 	// pic[1] -> imagem de saida
 
-	// Carrega a imagem
 	load(argv[1], &pic[0]);
 
 	width = pic[0].width;
 	height = pic[0].height;
 
-	// A largura e altura da imagem de saída são iguais às da imagem de entrada (0)
 	pic[1].width = pic[0].width;
 	pic[1].height = pic[0].height;
 	pic[1].img = calloc(pic[1].width * pic[1].height, 3); // W x H x 3 bytes (Pixel)
 
-	// Especifica o tamanho inicial em pixels da janela GLUT
 	glutInitWindowSize(width, height);
-
-	// Cria a janela passando como argumento o titulo da mesma
 	glutCreateWindow("Colorizeitor");
-
-	// Registra a funcao callback de redesenho da janela de visualizacao
 	glutDisplayFunc(draw);
-
-	// Registra a funcao callback para tratamento das teclas ASCII
 	glutKeyboardFunc(keyboard);
-
-	// Exibe as dimensões na tela, para conferência
 	printf("Origem  : %s %d x %d\n", argv[1], pic[0].width, pic[0].height);
-	sel = 0; // entrada
+	sel = 1; // entrada
 
-	// Define a janela de visualizacao 2D
 	glMatrixMode(GL_PROJECTION);
 	gluOrtho2D(0.0, width, height, 0.0);
 	glMatrixMode(GL_MODELVIEW);
@@ -123,15 +94,12 @@ int main(int argc, char **argv) {
 		for (int x = 0; x < width; x++)
 			out[y][x].r = in[y][x].r;
 
-	// Cria texturas em memória a partir dos pixels das imagens
 	tex[0] = SOIL_create_OGL_texture((unsigned char *) pic[0].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
 	tex[1] = SOIL_create_OGL_texture((unsigned char *) pic[1].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
 
-	// Entra no loop de eventos, não retorna
 	glutMainLoop();
 }
 
-// Gerencia eventos de teclado
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 27) {
 		// ESC: libera memória e finaliza
@@ -145,12 +113,10 @@ void keyboard(unsigned char key, int x, int y) {
 	glutPostRedisplay();
 }
 
-// Callback de redesenho da tela
 void draw() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Preto
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Define a janela de visualizacao 2D, ajusta relação de aspecto
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	float aspect = (float) glutGet(GLUT_WINDOW_WIDTH) / (float) glutGet(GLUT_WINDOW_HEIGHT);
@@ -185,6 +151,5 @@ void draw() {
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 
-	// Exibe a imagem
 	glutSwapBuffers();
 }
