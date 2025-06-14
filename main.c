@@ -23,12 +23,12 @@
 // Um pixel Pixel (24 bits)
 typedef struct {
     unsigned char r, g, b;
-} Pixel;
+} RGB;
 
 // Uma imagem Pixel
 typedef struct {
     int width, height;
-    Pixel* img;
+    RGB* img;
 } Img;
 
 // Protótipos
@@ -56,7 +56,7 @@ int sel;
 void load(char* name, Img* pic)
 {
     int chan;
-    pic->img = (Pixel*) SOIL_load_image(name, &pic->width, &pic->height, &chan, SOIL_LOAD_RGB);
+    pic->img = (RGB*) SOIL_load_image(name, &pic->width, &pic->height, &chan, SOIL_LOAD_RGB);
     if(!pic->img)
     {
         printf( "SOIL loading error: '%s'\n", SOIL_last_result() );
@@ -112,8 +112,8 @@ int main(int argc, char** argv)
 	glMatrixMode(GL_MODELVIEW);
 
     // Converte para interpretar como matriz
-    Pixel (*in)[width] = (Pixel(*)[width]) pic[0].img;
-    Pixel (*out)[width] = (Pixel(*)[width]) pic[1].img;
+    RGB (*in)[width] = (RGB(*)[width]) pic[0].img;
+    RGB (*out)[width] = (RGB(*)[width]) pic[1].img;
 
 	// Aplica o algoritmo e gera a saida em out (pic[1].img)
 	// ...
