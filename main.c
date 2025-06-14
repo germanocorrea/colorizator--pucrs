@@ -40,7 +40,24 @@ GLuint tex[2];
 Img pic[2];
 int sel;
 
-// Carrega uma imagem para a struct Img
+void grayscale(RGB (*in)[width], RGB (*out)[width]) {
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++) {
+			unsigned char gray = (unsigned char) (
+				0.59 * in[y][x].g +
+				0.3 * in[y][x].r +
+				0.11 * in[y][x].b
+			);
+			out[y][x].r = gray;
+			out[y][x].g = gray;
+			out[y][x].b = gray;
+		}
+}
+
+void user_function(RGB (*in)[width], RGB (*out)[width]) {
+	grayscale(in, out);
+}
+
 void load(char *name, Img *pic) {
 	int chan;
 	pic->img = (RGB *) SOIL_load_image(name, &pic->width, &pic->height, &chan, SOIL_LOAD_RGB);
@@ -86,13 +103,7 @@ int main(int argc, char **argv) {
 	RGB (*in)[width] = (RGB(*)[width]) pic[0].img;
 	RGB (*out)[width] = (RGB(*)[width]) pic[1].img;
 
-	// Aplica o algoritmo e gera a saida em out (pic[1].img)
-	// ...
-	// ...
-	// Exemplo: copia apenas o componente vermelho para a saida
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++)
-			out[y][x].r = in[y][x].r;
+	user_function(in, out);
 
 	tex[0] = SOIL_create_OGL_texture((unsigned char *) pic[0].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
 	tex[1] = SOIL_create_OGL_texture((unsigned char *) pic[1].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
