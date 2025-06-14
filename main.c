@@ -22,22 +22,25 @@
 
 // Um pixel Pixel (24 bits)
 typedef struct {
-    unsigned char r, g, b;
+	unsigned char r, g, b;
 } RGB;
 
 // Uma imagem Pixel
 typedef struct {
-    int width, height;
-    RGB* img;
+	int width, height;
+	RGB *img;
 } Img;
 
 // Protótipos
-void load(char* name, Img* pic);
+void load(char *name, Img *pic);
+
 void valida();
 
 // Funções da interface gráfica e OpenGL
 void init();
+
 void draw();
+
 void keyboard(unsigned char key, int x, int y);
 
 // Largura e altura da janela
@@ -53,25 +56,22 @@ Img pic[2];
 int sel;
 
 // Carrega uma imagem para a struct Img
-void load(char* name, Img* pic)
-{
-    int chan;
-    pic->img = (RGB*) SOIL_load_image(name, &pic->width, &pic->height, &chan, SOIL_LOAD_RGB);
-    if(!pic->img)
-    {
-        printf( "SOIL loading error: '%s'\n", SOIL_last_result() );
-        exit(1);
-    }
-    printf("Load: %d x %d x %d\n", pic->width, pic->height, chan);
+void load(char *name, Img *pic) {
+	int chan;
+	pic->img = (RGB *) SOIL_load_image(name, &pic->width, &pic->height, &chan, SOIL_LOAD_RGB);
+	if (!pic->img) {
+		printf("SOIL loading error: '%s'\n", SOIL_last_result());
+		exit(1);
+	}
+	printf("Load: %d x %d x %d\n", pic->width, pic->height, chan);
 }
 
-int main(int argc, char** argv)
-{
-    if(argc < 3) {
-        printf("colorizeitor [im. entrada] [arq. cores]\n");
-        exit(1);
-    }
-	glutInit(&argc,argv);
+int main(int argc, char **argv) {
+	if (argc < 3) {
+		printf("colorizeitor [im. entrada] [arq. cores]\n");
+		exit(1);
+	}
+	glutInit(&argc, argv);
 
 	// Define do modo de operacao da GLUT
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -80,14 +80,14 @@ int main(int argc, char** argv)
 	// pic[1] -> imagem de saida
 
 	// Carrega a imagem
-    load(argv[1], &pic[0]);
+	load(argv[1], &pic[0]);
 
-    width = pic[0].width;
-    height = pic[0].height;
+	width = pic[0].width;
+	height = pic[0].height;
 
-    // A largura e altura da imagem de saída são iguais às da imagem de entrada (0)
-    pic[1].width  = pic[0].width;
-    pic[1].height = pic[0].height;
+	// A largura e altura da imagem de saída são iguais às da imagem de entrada (0)
+	pic[1].width = pic[0].width;
+	pic[1].height = pic[0].height;
 	pic[1].img = calloc(pic[1].width * pic[1].height, 3); // W x H x 3 bytes (Pixel)
 
 	// Especifica o tamanho inicial em pixels da janela GLUT
@@ -100,93 +100,91 @@ int main(int argc, char** argv)
 	glutDisplayFunc(draw);
 
 	// Registra a funcao callback para tratamento das teclas ASCII
-	glutKeyboardFunc (keyboard);
+	glutKeyboardFunc(keyboard);
 
-    // Exibe as dimensões na tela, para conferência
-    printf("Origem  : %s %d x %d\n", argv[1], pic[0].width, pic[0].height);
-    sel = 0; // entrada
+	// Exibe as dimensões na tela, para conferência
+	printf("Origem  : %s %d x %d\n", argv[1], pic[0].width, pic[0].height);
+	sel = 0; // entrada
 
 	// Define a janela de visualizacao 2D
 	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0.0,width,height,0.0);
+	gluOrtho2D(0.0, width, height, 0.0);
 	glMatrixMode(GL_MODELVIEW);
 
-    // Converte para interpretar como matriz
-    RGB (*in)[width] = (RGB(*)[width]) pic[0].img;
-    RGB (*out)[width] = (RGB(*)[width]) pic[1].img;
+	// Converte para interpretar como matriz
+	RGB (*in)[width] = (RGB(*)[width]) pic[0].img;
+	RGB (*out)[width] = (RGB(*)[width]) pic[1].img;
 
 	// Aplica o algoritmo e gera a saida em out (pic[1].img)
 	// ...
 	// ...
-    // Exemplo: copia apenas o componente vermelho para a saida
-    for(int y=0; y<height; y++)
-        for(int x=0; x<width; x++)
-            out[y][x].r = in[y][x].r;
+	// Exemplo: copia apenas o componente vermelho para a saida
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++)
+			out[y][x].r = in[y][x].r;
 
 	// Cria texturas em memória a partir dos pixels das imagens
-    tex[0] = SOIL_create_OGL_texture((unsigned char*) pic[0].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
-    tex[1] = SOIL_create_OGL_texture((unsigned char*) pic[1].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
+	tex[0] = SOIL_create_OGL_texture((unsigned char *) pic[0].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
+	tex[1] = SOIL_create_OGL_texture((unsigned char *) pic[1].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
 
 	// Entra no loop de eventos, não retorna
-    glutMainLoop();
+	glutMainLoop();
 }
 
 // Gerencia eventos de teclado
-void keyboard(unsigned char key, int x, int y)
-{
-    if(key==27) {
-      // ESC: libera memória e finaliza
-      free(pic[0].img);
-      free(pic[1].img);
-      exit(1);
-    }
-    if(key >= '1' && key <= '2')
-        // 1-2: seleciona a imagem correspondente (origem ou destino)
-        sel = key - '1';
-    glutPostRedisplay();
+void keyboard(unsigned char key, int x, int y) {
+	if (key == 27) {
+		// ESC: libera memória e finaliza
+		free(pic[0].img);
+		free(pic[1].img);
+		exit(1);
+	}
+	if (key >= '1' && key <= '2')
+		// 1-2: seleciona a imagem correspondente (origem ou destino)
+		sel = key - '1';
+	glutPostRedisplay();
 }
 
 // Callback de redesenho da tela
-void draw()
-{
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Preto
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+void draw() {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Preto
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Define a janela de visualizacao 2D, ajusta relação de aspecto
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    float aspect = (float)glutGet(GLUT_WINDOW_WIDTH) / (float)glutGet(GLUT_WINDOW_HEIGHT);
-    if(aspect >= 1.0)
-	gluOrtho2D(0.0,width*aspect,height,0.0);
-    else
-	gluOrtho2D(0.0,width,height/aspect,0.0);
-    glMatrixMode(GL_MODELVIEW);
+	// Define a janela de visualizacao 2D, ajusta relação de aspecto
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	float aspect = (float) glutGet(GLUT_WINDOW_WIDTH) / (float) glutGet(GLUT_WINDOW_HEIGHT);
+	if (aspect >= 1.0)
+		gluOrtho2D(0.0, width * aspect, height, 0.0);
+	else
+		gluOrtho2D(0.0, width, height / aspect, 0.0);
+	glMatrixMode(GL_MODELVIEW);
 
-    // Para outras cores, veja exemplos em /etc/X11/Pixel.txt
+	// Para outras cores, veja exemplos em /etc/X11/Pixel.txt
 
-    glColor3ub(255, 255, 255);  // branco
+	glColor3ub(255, 255, 255); // branco
 
-    // Ativa a textura corresponde à imagem desejada
-    glBindTexture(GL_TEXTURE_2D, tex[sel]);
-    // E desenha um retângulo que ocupa toda a tela
-    glEnable(GL_TEXTURE_2D);
-    glBegin(GL_QUADS);
+	// Ativa a textura corresponde à imagem desejada
+	glBindTexture(GL_TEXTURE_2D, tex[sel]);
+	// E desenha um retângulo que ocupa toda a tela
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
 
-    glTexCoord2f(0,0);
-    glVertex2f(0,0);
+	glTexCoord2f(0, 0);
+	glVertex2f(0, 0);
 
-    glTexCoord2f(1,0);
-    glVertex2f(pic[sel].width,0);
+	glTexCoord2f(1, 0);
+	glVertex2f(pic[sel].width, 0);
 
-    glTexCoord2f(1,1);
-    glVertex2f(pic[sel].width, pic[sel].height);
+	glTexCoord2f(1, 1);
+	glVertex2f(pic[sel].width, pic[sel].height);
 
-    glTexCoord2f(0,1);
-    glVertex2f(0,pic[sel].height);
+	glTexCoord2f(0, 1);
+	glVertex2f(0, pic[sel].height);
 
-    glEnd();
-    glDisable(GL_TEXTURE_2D);
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
 
-    // Exibe a imagem
-    glutSwapBuffers();
+	// Exibe a imagem
+	glutSwapBuffers();
 }
