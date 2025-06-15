@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 	glutDisplayFunc(draw);
 	glutKeyboardFunc(keyboard);
 	printf("Origem  : %s %d x %d\n", argv[1], pic[0].width, pic[0].height);
-	sel = 1; // entrada
+	sel = 0; // entrada
 
 	glMatrixMode(GL_PROJECTION);
 	gluOrtho2D(0.0, width, height, 0.0);
@@ -189,7 +189,7 @@ void load_colors_from_file(char *filename) {
 		exit(1);
 	}
 
-	char line[12];
+	char line[13];
 	while (fgets(line, sizeof(line), file)) {
 		if (strlen(line) > 1)
 			color_palette_size++;
