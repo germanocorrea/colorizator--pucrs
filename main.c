@@ -218,13 +218,16 @@ void free_visited_matrix(bool **visited) {
 	free(visited);
 }
 
-bool color_is_equal(RGB color_a, RGB color_b) {
-	const int color_diff_tolerance = 1 ;
-	return (
-		abs(color_a.r - color_b.r) <= color_diff_tolerance &&
-		abs(color_a.g - color_b.g) <= color_diff_tolerance &&
-		abs(color_a.b - color_b.b) <= color_diff_tolerance
-	);
+float color_distance(RGB color_a, RGB color_b) {
+	float dr = (float) color_a.r - color_b.r;
+	float dg = (float) color_a.g - color_b.g;
+	float db = (float) color_a.b - color_b.b;
+
+	return sqrt(dr * dr + dg * dg + db * db);
+}
+
+bool color_is_similar(RGB color_a, RGB color_b, const float tolerance) {
+	return color_distance(color_a, color_b) <= tolerance;
 }
 
 typedef struct {
