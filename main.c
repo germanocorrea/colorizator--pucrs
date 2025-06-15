@@ -173,9 +173,7 @@ void grayscale(const RGB (*in)[width], RGB (*out)[width]) {
 				0.3 * in[y][x].r +
 				0.11 * in[y][x].b
 			);
-			out[y][x].r = gray;
-			out[y][x].g = gray;
-			out[y][x].b = gray;
+			out[y][x] = (RGB){gray, gray, gray};
 		}
 }
 
@@ -229,6 +227,28 @@ bool color_is_equal(RGB color_a, RGB color_b) {
 	);
 }
 
+typedef struct {
+	RGB shade_of_gray;
+	RGB color;
+} ColorToShadeOfGray;
+
+RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_to_shade_of_gray_dict) {
+	int i = 0;
+	do {
+		const ColorToShadeOfGray *color_to_shade_of_gray = &color_to_shade_of_gray_dict[i];
+		if (
+			color_to_shade_of_gray->color.r == 0 &&
+			color_to_shade_of_gray->color.g == 0 &&
+			color_to_shade_of_gray->color.b == 0)
+			break;
+		if (color_is_equal(color_to_shade_of_gray->shade_of_gray, *shade_of_gray))
+			return color_to_shade_of_gray->color;
+		i++;
+	} while (i < width * height);
+	color_to_shade_of_gray_dict[i] = (ColorToShadeOfGray){*shade_of_gray, color_palette[i % color_palette_size]};
+	return color_to_shade_of_gray_dict[i].color;
+}
+
 void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 	bool **visited = generated_visited_matrix();
 
@@ -255,8 +275,6 @@ void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 
 			while (region_start < region_end) {
 				const Coordinate c = queue[region_start];
-				if (color_is_equal(in[c.y][c.x], (RGB) {0, 0, 0}))
-					continue;
 
 				region_start++;
 				for (int dy = -1; dy <= 1; dy++)
@@ -283,17 +301,22 @@ void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 			current_region++;
 		}
 
+	free(queue);
+	free_visited_matrix(visited);
+
+	ColorToShadeOfGray *color_to_shade_of_gray_dict = calloc(width * height, sizeof(ColorToShadeOfGray));
+
 	for (int y = 0; y < height; y++)
 		for (int x = 0; x < width; x++) {
 			const int region_id = regions[y * width + x];
 			if (region_id == 1 || color_is_equal(in[y][x], (RGB){0, 0, 0}))
-				// out[y][x] = (RGB){0, 0, 0};
-					out[y][x] = in[y][x];
+				out[y][x] = in[y][x];
 			else
-				out[y][x] = color_palette[(region_id - 1) % color_palette_size];
+				out[y][x] = get_color_from_palette(&in[y][x], color_to_shade_of_gray_dict);
 		}
 
-	free(queue);
+	free(color_to_shade_of_gray_dict);
 	free(regions);
-	free_visited_matrix(visited);
 }
+
+
