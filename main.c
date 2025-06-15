@@ -30,9 +30,13 @@ typedef struct {
 } Img;
 
 void load(char *name, Img *pic);
+
 void valida();
+
 void init();
+
 void draw();
+
 void keyboard(unsigned char key, int x, int y);
 
 int width, height;
@@ -40,23 +44,17 @@ GLuint tex[2];
 Img pic[2];
 int sel;
 
-void grayscale(RGB (*in)[width], RGB (*out)[width]) {
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++) {
-			unsigned char gray = (unsigned char) (
-				0.59 * in[y][x].g +
-				0.3 * in[y][x].r +
-				0.11 * in[y][x].b
-			);
-			out[y][x].r = gray;
-			out[y][x].g = gray;
-			out[y][x].b = gray;
-		}
-}
+// user defined functions
+void grayscale(const RGB (*in)[width], RGB (*out)[width]);
 
-void user_function(RGB (*in)[width], RGB (*out)[width]) {
-	grayscale(in, out);
-}
+void colorizeitor(const RGB (*in)[width], RGB (*out)[width]);
+
+void user_function(const RGB (*in)[width], RGB (*out)[width]);
+
+void load_colors_from_file(char *filename);
+
+RGB *color_palette = NULL;
+int color_palette_size = 0;
 
 void load(char *name, Img *pic) {
 	int chan;
@@ -103,6 +101,7 @@ int main(int argc, char **argv) {
 	RGB (*in)[width] = (RGB(*)[width]) pic[0].img;
 	RGB (*out)[width] = (RGB(*)[width]) pic[1].img;
 
+	load_colors_from_file(argv[2]);
 	user_function(in, out);
 
 	tex[0] = SOIL_create_OGL_texture((unsigned char *) pic[0].img, width, height, SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0);
@@ -116,6 +115,7 @@ void keyboard(unsigned char key, int x, int y) {
 		// ESC: libera memória e finaliza
 		free(pic[0].img);
 		free(pic[1].img);
+		free(color_palette);
 		exit(1);
 	}
 	if (key >= '1' && key <= '2')
@@ -163,4 +163,137 @@ void draw() {
 	glDisable(GL_TEXTURE_2D);
 
 	glutSwapBuffers();
+}
+
+void grayscale(const RGB (*in)[width], RGB (*out)[width]) {
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++) {
+			const unsigned char gray = (unsigned char) (
+				0.59 * in[y][x].g +
+				0.3 * in[y][x].r +
+				0.11 * in[y][x].b
+			);
+			out[y][x].r = gray;
+			out[y][x].g = gray;
+			out[y][x].b = gray;
+		}
+}
+
+void user_function(const RGB (*in)[width], RGB (*out)[width]) {
+	grayscale(in, out);
+	colorizeitor(in, out);
+}
+
+void load_colors_from_file(char *filename) {
+	FILE *file = fopen(filename, "r");
+	if (!file) {
+		printf("Error opening file '%s'\n", filename);
+		exit(1);
+	}
+
+	char line[12];
+	while (fgets(line, sizeof(line), file)) {
+		if (strlen(line) > 1)
+			color_palette_size++;
+	}
+
+	color_palette = (RGB *) malloc(color_palette_size * sizeof(RGB));
+	rewind(file);
+	for (int i = 0; i < color_palette_size; i++) {
+		fgets(line, sizeof(line), file);
+		sscanf(line, "%d %d %d", &color_palette[i].r, &color_palette[i].g, &color_palette[i].b);
+	}
+	fclose(file);
+}
+
+bool **generated_visited_matrix() {
+	bool **visited = malloc(height * sizeof(bool *));
+	for (int i = 0; i < height; i++)
+		visited[i] = malloc(width * sizeof(bool));
+
+	return visited;
+}
+
+void free_visited_matrix(bool **visited) {
+	for (int i = 0; i < height; i++)
+		free(visited[i]);
+	free(visited);
+}
+
+bool color_is_equal(RGB color_a, RGB color_b) {
+	const int color_diff_tolerance = 1 ;
+	return (
+		abs(color_a.r - color_b.r) <= color_diff_tolerance &&
+		abs(color_a.g - color_b.g) <= color_diff_tolerance &&
+		abs(color_a.b - color_b.b) <= color_diff_tolerance
+	);
+}
+
+void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
+	bool **visited = generated_visited_matrix();
+
+	typedef struct {
+		int x, y;
+	} Coordinate;
+
+	int *regions = calloc(width * height, sizeof(int));
+	Coordinate *queue = malloc(width * height * sizeof(Coordinate));
+	int current_region = 1;
+
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++) {
+			if (visited[y][x])
+				continue;
+
+			int region_start = 0, region_end = 0;
+			queue[region_end] = (Coordinate){x, y};
+			region_end++;
+			visited[y][x] = true;
+			regions[y * width + x] = current_region;
+
+			const RGB ref = in[y][x];
+
+			while (region_start < region_end) {
+				const Coordinate c = queue[region_start];
+				if (color_is_equal(in[c.y][c.x], (RGB) {0, 0, 0}))
+					continue;
+
+				region_start++;
+				for (int dy = -1; dy <= 1; dy++)
+					for (int dx = -1; dx <= 1; dx++) {
+						const int nx = c.x + dx;
+						const int ny = c.y + dy;
+						const bool neighbour_out_of_image_boundaries =
+								nx < 0 || nx >= width || ny < 0 || ny >= height;
+
+						if (neighbour_out_of_image_boundaries)
+							continue;
+						if (visited[ny][nx])
+							continue;
+						if (color_is_equal(in[ny][nx], ref)) {
+							visited[ny][nx] = true;
+							regions[ny * width + nx] = current_region;
+
+							queue[region_end] = (Coordinate){nx, ny};
+							region_end++;
+						}
+					}
+			}
+
+			current_region++;
+		}
+
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++) {
+			const int region_id = regions[y * width + x];
+			if (region_id == 1 || color_is_equal(in[y][x], (RGB){0, 0, 0}))
+				// out[y][x] = (RGB){0, 0, 0};
+					out[y][x] = in[y][x];
+			else
+				out[y][x] = color_palette[(region_id - 1) % color_palette_size];
+		}
+
+	free(queue);
+	free(regions);
+	free_visited_matrix(visited);
 }
