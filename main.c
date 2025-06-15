@@ -29,6 +29,22 @@ typedef struct {
 	RGB *img;
 } Img;
 
+typedef struct {
+    double l, a, b;
+} LAB;
+
+typedef struct {
+	RGB shade_of_gray;
+	RGB color;
+} ColorToShadeOfGray;
+
+typedef struct {
+	int x, y;
+} Coordinate;
+
+int black_tolerance = 30;
+
+bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance);
 void load(char *name, Img *pic);
 
 void valida();
@@ -246,9 +262,10 @@ RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_t
 		if (
 			color_to_shade_of_gray->color.r == 0 &&
 			color_to_shade_of_gray->color.g == 0 &&
-			color_to_shade_of_gray->color.b == 0)
+			color_to_shade_of_gray->color.b == 0
+		)
 			break;
-		if (color_is_similar(color_to_shade_of_gray->shade_of_gray, *shade_of_gray, 30))
+		if (color_is_equal(color_to_shade_of_gray->shade_of_gray, *shade_of_gray, 5))
 			return color_to_shade_of_gray->color;
 		i++;
 	} while (i < width * height);
@@ -293,8 +310,8 @@ void flood_fill_seed(
 				if (visited[ny][nx])
 					continue;
 				if (
-					color_is_similar(in[ny][nx], ref, 100) &&
-					!color_is_similar(out[ny][nx], (RGB) {0,0,0}, 5)
+					color_is_equal(in[ny][nx], ref, 15) &&
+					!color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
 				) {
 					visited[ny][nx] = true;
 					regions[ny * width + nx] = *current_region;
@@ -329,13 +346,78 @@ void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 	for (int y = 0; y < height; y++)
 		for (int x = 0; x < width; x++) {
 			const int region_id = regions[y * width + x];
-			if (region_id == 1 || color_is_similar(out[y][x], (RGB){0, 0, 0}, 80)) {
-			}
-			// out[y][x] = out[y][x];
-			else
+			if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
+				out[y][x] = (RGB) {0,0,0};
+			else if (region_id != 1)
 				out[y][x] = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
 		}
 
 	free(color_to_shade_of_gray_dict);
 	free(regions);
+}
+
+void rgb_to_xyz(RGB rgb, double *x, double *y, double *z) {
+    double r = rgb.r / 255.0;
+    double g = rgb.g / 255.0;
+    double b = rgb.b / 255.0;
+
+    r = (r > 0.04045) ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+    g = (g > 0.04045) ? pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+    b = (b > 0.04045) ? pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+
+    *x = r * 0.412453 + g * 0.357580 + b * 0.180423;
+    *y = r * 0.212671 + g * 0.715160 + b * 0.072169;
+    *z = r * 0.019334 + g * 0.119193 + b * 0.950227;
+}
+
+double t_function(double t) {
+	// double delta = 6.0 / 29.0;
+	double detal_p_3 = 0.008856; // pow(delta, 3.0)
+
+    if (t > detal_p_3) {
+        return pow(t, 1.0/3.0);
+    } else {
+    	// double m = (1.0/3.0) * pow(delta, -2.0)
+    	double m = 7.787037;
+        return (t * m) + (4.0/29.0);
+    }
+}
+
+LAB xyz_to_lab(double x, double y, double z) {
+    const double xn = 95.0489 / 100;
+    const double yn = 100.0 / 100;
+    const double zn = 108.8840 / 100;
+
+    double fx = x / xn;
+    double fy = y / yn;
+    double fz = z / zn;
+
+    LAB lab = (LAB) {
+    	.l = (116.0 * t_function(fy)) - 16,
+    	.a = 500.0 * (t_function(fx) - t_function(fy)),
+    	.b = 200.0 * (t_function(fy) - t_function(fz))
+    };
+
+    return lab;
+}
+
+LAB rgb_to_lab(RGB rgb) {
+    double x, y, z;
+    rgb_to_xyz(rgb, &x, &y, &z);
+    return xyz_to_lab(x, y, z);
+}
+
+double delta_e(RGB color1, RGB color2) {
+    LAB lab1 = rgb_to_lab(color1);
+    LAB lab2 = rgb_to_lab(color2);
+
+    double dl = lab1.l - lab2.l;
+    double da = lab1.a - lab2.a;
+    double db = lab1.b - lab2.b;
+
+    return sqrt(dl*dl + da*da + db*db);
+}
+
+bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance) {
+    return delta_e(color_a, color_b) <= delta_e_tolerance;
 }
