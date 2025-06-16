@@ -42,7 +42,9 @@ typedef struct {
 	int x, y;
 } Coordinate;
 
-int black_tolerance = 30;
+int black_tolerance = 5;
+int gray_tolerance = 3;
+int color_diff_tolerance = 3;
 
 bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance);
 void load(char *name, Img *pic);
@@ -256,7 +258,7 @@ RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_t
 			color_to_shade_of_gray->color.b == 0
 		)
 			break;
-		if (color_is_equal(color_to_shade_of_gray->shade_of_gray, *shade_of_gray, 5))
+		if (color_is_equal(color_to_shade_of_gray->shade_of_gray, *shade_of_gray, gray_tolerance))
 			return color_to_shade_of_gray->color;
 		i++;
 	} while (i < width * height);
@@ -301,7 +303,7 @@ void flood_fill_seed(
 				if (visited[ny][nx])
 					continue;
 				if (
-					color_is_equal(in[ny][nx], ref, 15) &&
+					color_is_equal(in[ny][nx], ref, color_diff_tolerance) &&
 					!color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
 				) {
 					visited[ny][nx] = true;
