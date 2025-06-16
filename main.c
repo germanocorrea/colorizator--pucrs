@@ -246,14 +246,7 @@ bool color_is_similar(RGB color_a, RGB color_b, const float tolerance) {
 	return color_distance(color_a, color_b) <= tolerance;
 }
 
-typedef struct {
-	RGB shade_of_gray;
-	RGB color;
-} ColorToShadeOfGray;
 
-typedef struct {
-	int x, y;
-} Coordinate;
 
 RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_to_shade_of_gray_dict) {
 	int i = 0;
@@ -267,13 +260,22 @@ RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_t
 			break;
 		if (color_is_equal(color_to_shade_of_gray->shade_of_gray, *shade_of_gray, 5))
 			return color_to_shade_of_gray->color;
+		// if (color_to_shade_of_gray->color.r == shade_of_gray->r)
+			// return color_to_shade_of_gray->color;
 		i++;
 	} while (i < width * height);
 	color_to_shade_of_gray_dict[i] = (ColorToShadeOfGray){*shade_of_gray, color_palette[i % color_palette_size]};
 	return color_to_shade_of_gray_dict[i].color;
 }
 
-void flood_fill_seed(
+typedef struct {
+	bool is_inner_region;
+	int region_size;
+	Coordinate pixel_list[];
+	RGB ref_color;
+} FloodFillReturn;
+
+FloodFillReturn flood_fill_seed(
 	const RGB (*in)[width],
 	RGB (*out)[width],
 	bool **visited,
@@ -282,8 +284,8 @@ void flood_fill_seed(
 	int y,
 	int x
 ) {
-	if (visited[y][x])
-		return;
+	// if (visited[y][x])
+	// 	return NULL;
 
 	Coordinate *queue = malloc(width * height * sizeof(Coordinate));
 	int region_start = 0, region_end = 0;
@@ -291,6 +293,8 @@ void flood_fill_seed(
 	region_end++;
 	visited[y][x] = true;
 	regions[y * width + x] = *current_region;
+	bool is_inner_region = false;
+	int region_size = 0;
 
 	const RGB ref = out[y][x];
 
@@ -309,10 +313,13 @@ void flood_fill_seed(
 					continue;
 				if (visited[ny][nx])
 					continue;
-				if (
-					color_is_equal(in[ny][nx], ref, 15) &&
-					!color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
-				) {
+
+				bool same_color = color_is_equal(in[ny][nx], ref, 15);
+				bool found_black_border = (
+					!color_is_equal(ref, (RGB) {0,0,0}, black_tolerance) &&
+					color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
+				);
+				if (same_color && !found_black_border) {
 					visited[ny][nx] = true;
 					regions[ny * width + nx] = *current_region;
 					out[ny][nx] = ref;
@@ -320,11 +327,46 @@ void flood_fill_seed(
 					queue[region_end] = (Coordinate){nx, ny};
 					region_end++;
 				}
+
+				if (found_black_border) {
+					is_inner_region = true;
+				}
+
 			}
 	}
 
 	(*current_region)++;
 	free(queue);
+	return (FloodFillReturn) {
+		.is_inner_region = is_inner_region,
+		.region_size = region_size
+	};
+}
+
+bool exists_in(int value, int *array, int size) {
+	for (int i = 0; i < size; i++)
+		if (array[i] == value)
+			return true;
+	return false;
+}
+
+void paint_region(
+	const RGB (*in)[width], RGB (*out)[width],
+	const int *regions,
+	const int region_id,
+	ColorToShadeOfGray *color_to_shade_of_gray_dict
+) {
+	for (int y = 0; y < height; y++)
+		for (int x = 0; x < width; x++) {
+			if (regions[y * width + x] != region_id)
+				continue;
+
+			// const int region_id = regions[y * width + x];
+			if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
+				out[y][x] = (RGB) {0,0,0};
+			else // if (region_id != 1)
+				out[y][x] = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
+		}
 }
 
 void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
@@ -334,24 +376,23 @@ void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 	int *regions = calloc(width * height, sizeof(int));
 	int current_region = 1;
 
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++) {
-			flood_fill_seed(in, out, visited, regions, &current_region, y, x);
+	ColorToShadeOfGray *color_to_shade_of_gray_dict = calloc(width * height, sizeof(ColorToShadeOfGray));
+	int i = 0;
+	do {
+		int x = rand() % width;
+		int y = rand() % height;
+		if (visited[y][x]) {
+			continue;
 		}
+		FloodFillReturn response = flood_fill_seed(in, out, visited, regions, &current_region, y, x);
+		i++;
+
+		if (response.is_inner_region)
+			paint_region(in, out, regions, current_region, color_to_shade_of_gray_dict);
+
+	} while (i < width * height);
 
 	free_visited_matrix(visited);
-
-	ColorToShadeOfGray *color_to_shade_of_gray_dict = calloc(width * height, sizeof(ColorToShadeOfGray));
-
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++) {
-			const int region_id = regions[y * width + x];
-			if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
-				out[y][x] = (RGB) {0,0,0};
-			else if (region_id != 1)
-				out[y][x] = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
-		}
-
 	free(color_to_shade_of_gray_dict);
 	free(regions);
 }
