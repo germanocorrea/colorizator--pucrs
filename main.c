@@ -43,7 +43,7 @@ typedef struct {
 } Coordinate;
 
 int black_tolerance = 5;
-int gray_tolerance = 3;
+int gray_tolerance = 2;
 int color_diff_tolerance = 3;
 
 bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance);
@@ -285,7 +285,8 @@ void flood_fill_seed(
 	visited[y][x] = true;
 	regions[y * width + x] = *current_region;
 
-	const RGB ref = out[y][x];
+	const RGB ref = in[y][x];
+	RGB last = ref;
 
 	while (region_start < region_end) {
 		const Coordinate c = queue[region_start];
@@ -303,12 +304,12 @@ void flood_fill_seed(
 				if (visited[ny][nx])
 					continue;
 				if (
-					color_is_equal(in[ny][nx], ref, color_diff_tolerance) &&
+					color_is_equal(in[ny][nx], last, color_diff_tolerance) &&
 					!color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
 				) {
 					visited[ny][nx] = true;
 					regions[ny * width + nx] = *current_region;
-					out[ny][nx] = ref;
+					last = in[ny][nx];
 
 					queue[region_end] = (Coordinate){nx, ny};
 					region_end++;
