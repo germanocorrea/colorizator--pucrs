@@ -246,15 +246,6 @@ bool color_is_similar(RGB color_a, RGB color_b, const float tolerance) {
 	return color_distance(color_a, color_b) <= tolerance;
 }
 
-typedef struct {
-	RGB shade_of_gray;
-	RGB color;
-} ColorToShadeOfGray;
-
-typedef struct {
-	int x, y;
-} Coordinate;
-
 RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_to_shade_of_gray_dict) {
 	int i = 0;
 	do {
@@ -348,8 +339,13 @@ void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 			const int region_id = regions[y * width + x];
 			if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
 				out[y][x] = (RGB) {0,0,0};
-			else if (region_id != 1)
-				out[y][x] = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
+			else if (region_id != 1) {
+				float mask = out[y][x].r / 255.0f;
+				RGB new_color = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
+				out[y][x].r = (unsigned char)(new_color.r * mask);
+				out[y][x].g = (unsigned char)(new_color.g * mask);
+				out[y][x].b = (unsigned char)(new_color.b * mask);
+			}
 		}
 
 	free(color_to_shade_of_gray_dict);
