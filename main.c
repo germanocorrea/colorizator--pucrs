@@ -30,7 +30,7 @@ typedef struct {
 } Img;
 
 typedef struct {
-    double l, a, b;
+	double l, a, b;
 } LAB;
 
 typedef struct {
@@ -42,11 +42,12 @@ typedef struct {
 	int x, y;
 } Coordinate;
 
-int black_tolerance = 5;
+int black_tolerance = 7;
 int gray_tolerance = 2;
-int color_diff_tolerance = 3;
+int color_diff_tolerance = 5;
 
-bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance);
+bool color_is_equal(RGB color_a, RGB color_b, double delta_e_tolerance);
+
 void load(char *name, Img *pic);
 
 void valida();
@@ -73,6 +74,30 @@ void load_colors_from_file(char *filename);
 
 RGB *color_palette = NULL;
 int color_palette_size = 0;
+ColorToShadeOfGray *color_to_shade_of_gray_dict = NULL;
+
+void print_image_to_terminal(const RGB (*img)[width], int height, int width) {
+	// apenas para debug com imagens pequenas (por ex, imagem teste.png)
+	return;
+	// Códigos ANSI para resetar a cor
+	const char *RESET = "\033[0m";
+
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			// Obtém o pixel atual
+			RGB pixel = img[y][x];
+
+			// Define a cor do fundo usando código ANSI RGB
+			printf("\033[48;2;%d;%d;%dm  %s",
+					pixel.r, pixel.g, pixel.b,
+					RESET);
+		}
+		// Nova linha após cada linha da imagem
+		printf("\n");
+	}
+
+	printf("=====================\n");
+}
 
 void load(char *name, Img *pic) {
 	int chan;
@@ -134,6 +159,7 @@ void keyboard(unsigned char key, int x, int y) {
 		free(pic[0].img);
 		free(pic[1].img);
 		free(color_palette);
+		free(color_to_shade_of_gray_dict);
 		exit(1);
 	}
 	if (key >= '1' && key <= '2')
@@ -270,7 +296,6 @@ void flood_fill_seed(
 	const RGB (*in)[width],
 	RGB (*out)[width],
 	bool **visited,
-	int *regions,
 	int *current_region,
 	int y,
 	int x
@@ -278,18 +303,24 @@ void flood_fill_seed(
 	if (visited[y][x])
 		return;
 
-	Coordinate *queue = malloc(width * height * sizeof(Coordinate));
-	int region_start = 0, region_end = 0;
-	queue[region_end] = (Coordinate){x, y};
-	region_end++;
+	Coordinate *queue = calloc(width * height, sizeof(Coordinate));
+	Coordinate *region_member = calloc(width * height, sizeof(Coordinate));
+
+	int region_start = 0, region_size = 0;
+
+	queue[region_size] = (Coordinate){x, y};
+	region_member[region_size] = (Coordinate){x, y};
 	visited[y][x] = true;
-	regions[y * width + x] = *current_region;
+	region_size++;
 
-	const RGB ref = in[y][x];
-	RGB last = ref;
+	const RGB ref = out[y][x];
 
-	while (region_start < region_end) {
+	bool is_outer_region = false;
+	while (region_start < region_size) {
 		const Coordinate c = queue[region_start];
+		if (c.x == 0 && c.y == 0 && region_start > 0) {
+			break;
+		}
 
 		region_start++;
 		for (int dy = -1; dy <= 1; dy++)
@@ -299,124 +330,126 @@ void flood_fill_seed(
 				const bool neighbour_out_of_image_boundaries =
 						nx < 0 || nx >= width || ny < 0 || ny >= height;
 
-				if (neighbour_out_of_image_boundaries)
+				if (neighbour_out_of_image_boundaries) {
+					is_outer_region = true;
 					continue;
+				}
 				if (visited[ny][nx])
 					continue;
+
 				if (
-					color_is_equal(in[ny][nx], last, color_diff_tolerance) &&
-					!color_is_equal(out[ny][nx], (RGB) {0,0,0}, black_tolerance)
+					color_is_equal(out[ny][nx], ref, color_diff_tolerance) &&
+					!color_is_equal(out[ny][nx], (RGB){0, 0, 0}, color_diff_tolerance)
 				) {
 					visited[ny][nx] = true;
-					regions[ny * width + nx] = *current_region;
-					last = in[ny][nx];
-
-					queue[region_end] = (Coordinate){nx, ny};
-					region_end++;
+					queue[region_size] = (Coordinate){nx, ny};
+					region_member[region_size] = (Coordinate){nx, ny};
+					region_size++;
 				}
 			}
 	}
 
 	(*current_region)++;
 	free(queue);
+
+	for (int i = 0; i < region_size; i++) {
+		const Coordinate c = region_member[i];
+		const int y = c.y;
+		const int x = c.x;
+		if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
+			out[y][x] = (RGB){0, 0, 0};
+		else if (!is_outer_region) {
+			float mask = out[y][x].r / 255.0f;
+			RGB new_color = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
+			out[y][x].r = (unsigned char) (new_color.r * mask);
+			out[y][x].g = (unsigned char) (new_color.g * mask);
+			out[y][x].b = (unsigned char) (new_color.b * mask);
+		} else out[y][x] = (RGB){255, 255, 255};
+	}
+
+	print_image_to_terminal(out, height, width);
+
+	free(region_member);
 }
 
 void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
 	bool **visited = generated_visited_matrix();
 
-
-	int *regions = calloc(width * height, sizeof(int));
 	int current_region = 1;
 
 	for (int y = 0; y < height; y++)
 		for (int x = 0; x < width; x++) {
-			flood_fill_seed(in, out, visited, regions, &current_region, y, x);
+			flood_fill_seed(in, out, visited, &current_region, y, x);
 		}
 
 	free_visited_matrix(visited);
-
-	ColorToShadeOfGray *color_to_shade_of_gray_dict = calloc(width * height, sizeof(ColorToShadeOfGray));
-
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++) {
-			const int region_id = regions[y * width + x];
-			if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
-				out[y][x] = (RGB) {0,0,0};
-			else if (region_id != 1) {
-				float mask = out[y][x].r / 255.0f;
-				RGB new_color = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
-				out[y][x].r = (unsigned char)(new_color.r * mask);
-				out[y][x].g = (unsigned char)(new_color.g * mask);
-				out[y][x].b = (unsigned char)(new_color.b * mask);
-			}
-		}
-
-	free(color_to_shade_of_gray_dict);
-	free(regions);
 }
 
 void rgb_to_xyz(RGB rgb, double *x, double *y, double *z) {
-    double r = rgb.r / 255.0;
-    double g = rgb.g / 255.0;
-    double b = rgb.b / 255.0;
+	double r = rgb.r / 255.0;
+	double g = rgb.g / 255.0;
+	double b = rgb.b / 255.0;
 
-    r = (r > 0.04045) ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
-    g = (g > 0.04045) ? pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
-    b = (b > 0.04045) ? pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+	r = (r > 0.04045) ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+	g = (g > 0.04045) ? pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+	b = (b > 0.04045) ? pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
 
-    *x = r * 0.412453 + g * 0.357580 + b * 0.180423;
-    *y = r * 0.212671 + g * 0.715160 + b * 0.072169;
-    *z = r * 0.019334 + g * 0.119193 + b * 0.950227;
+	*x = r * 0.412453 + g * 0.357580 + b * 0.180423;
+	*y = r * 0.212671 + g * 0.715160 + b * 0.072169;
+	*z = r * 0.019334 + g * 0.119193 + b * 0.950227;
 }
 
 double t_function(double t) {
 	// double delta = 6.0 / 29.0;
 	double detal_p_3 = 0.008856; // pow(delta, 3.0)
 
-    if (t > detal_p_3) {
-        return pow(t, 1.0/3.0);
-    } else {
-    	// double m = (1.0/3.0) * pow(delta, -2.0)
-    	double m = 7.787037;
-        return (t * m) + (4.0/29.0);
-    }
+	if (t > detal_p_3) {
+		return pow(t, 1.0 / 3.0);
+	} else {
+		// double m = (1.0/3.0) * pow(delta, -2.0)
+		double m = 7.787037;
+		return (t * m) + (4.0 / 29.0);
+	}
 }
 
 LAB xyz_to_lab(double x, double y, double z) {
-    const double xn = 95.0489 / 100;
-    const double yn = 100.0 / 100;
-    const double zn = 108.8840 / 100;
+	const double xn = 95.0489 / 100;
+	const double yn = 100.0 / 100;
+	const double zn = 108.8840 / 100;
 
-    double fx = x / xn;
-    double fy = y / yn;
-    double fz = z / zn;
+	double fx = x / xn;
+	double fy = y / yn;
+	double fz = z / zn;
 
-    LAB lab = (LAB) {
-    	.l = (116.0 * t_function(fy)) - 16,
-    	.a = 500.0 * (t_function(fx) - t_function(fy)),
-    	.b = 200.0 * (t_function(fy) - t_function(fz))
-    };
+	LAB lab = (LAB){
+		.l = (116.0 * t_function(fy)) - 16,
+		.a = 500.0 * (t_function(fx) - t_function(fy)),
+		.b = 200.0 * (t_function(fy) - t_function(fz))
+	};
 
-    return lab;
+	return lab;
 }
 
 LAB rgb_to_lab(RGB rgb) {
-    double x, y, z;
-    rgb_to_xyz(rgb, &x, &y, &z);
-    return xyz_to_lab(x, y, z);
+	double x, y, z;
+	rgb_to_xyz(rgb, &x, &y, &z);
+	return xyz_to_lab(x, y, z);
 }
 
 double delta_e(RGB color1, RGB color2) {
-    LAB lab1 = rgb_to_lab(color1);
-    LAB lab2 = rgb_to_lab(color2);
+	LAB lab1 = rgb_to_lab(color1);
+	LAB lab2 = rgb_to_lab(color2);
 
-    double dl = lab1.l - lab2.l;
-    double da = lab1.a - lab2.a;
-    double db = lab1.b - lab2.b;
+	double dl = lab1.l - lab2.l;
+	double da = lab1.a - lab2.a;
+	double db = lab1.b - lab2.b;
 
-    return sqrt(dl*dl + da*da + db*db);
+	return sqrt(dl * dl + da * da + db * db);
 }
 
 bool color_is_equal(RGB color_a, RGB color_b, const double delta_e_tolerance) {
-    return delta_e(color_a, color_b) <= delta_e_tolerance;
+	if (color_a.r == color_b.r && color_a.g == color_b.g && color_a.b == color_b.b) {
+		return true;
+	}
+	return delta_e(color_a, color_b) <= delta_e_tolerance;
 }
