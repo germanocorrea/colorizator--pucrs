@@ -278,6 +278,14 @@ bool color_is_similar(RGB color_a, RGB color_b, const float tolerance) {
 	return color_distance(color_a, color_b) <= tolerance;
 }
 
+int randomly_change_channel(int channel) {
+	int multiplier = (rand() % 2) * 2 - 1;
+	if (multiplier == -1) {
+		return channel + (rand() % ((255 - channel) / 2));
+	}
+	return channel - ((rand() % channel) / 2);
+}
+
 RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_to_shade_of_gray_dict) {
 	int i = 0;
 	do {
@@ -293,6 +301,11 @@ RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_t
 		i++;
 	} while (i < width * height);
 	color_to_shade_of_gray_dict[i] = (ColorToShadeOfGray){*shade_of_gray, color_palette[i % color_palette_size]};
+	if (i >= color_palette_size) {
+		color_to_shade_of_gray_dict[i].color.r = randomly_change_channel(color_to_shade_of_gray_dict[i].color.r);
+		color_to_shade_of_gray_dict[i].color.g = randomly_change_channel(color_to_shade_of_gray_dict[i].color.g);
+		color_to_shade_of_gray_dict[i].color.b = randomly_change_channel(color_to_shade_of_gray_dict[i].color.b);
+	}
 	return color_to_shade_of_gray_dict[i].color;
 }
 
