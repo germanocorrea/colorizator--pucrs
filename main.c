@@ -42,7 +42,7 @@ typedef struct {
 	int x, y;
 } Coordinate;
 
-int black_tolerance = 7;
+int black_tolerance = 10;
 int gray_tolerance = 2;
 int color_diff_tolerance = 5;
 
