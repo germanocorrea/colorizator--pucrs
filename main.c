@@ -361,7 +361,7 @@ void flood_fill_seed(
 		if (color_is_equal(out[y][x], (RGB){0, 0, 0}, black_tolerance))
 			out[y][x] = (RGB){0, 0, 0};
 		else if (!is_outer_region) {
-			float mask = out[y][x].r / 255.0f;
+			float mask = 1;//out[y][x].r / 255.0f; // mascara removida, estava desbotando muito
 			RGB new_color = get_color_from_palette(&out[y][x], color_to_shade_of_gray_dict);
 			out[y][x].r = (unsigned char) (new_color.r * mask);
 			out[y][x].g = (unsigned char) (new_color.g * mask);
