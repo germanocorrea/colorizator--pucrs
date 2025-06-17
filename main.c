@@ -222,8 +222,10 @@ void grayscale(const RGB (*in)[width], RGB (*out)[width]) {
 }
 
 void user_function(const RGB (*in)[width], RGB (*out)[width]) {
+	color_to_shade_of_gray_dict = calloc(width * height, sizeof(ColorToShadeOfGray));
 	grayscale(in, out);
 	colorizeitor(in, out);
+	print_image_to_terminal(out, height, width);
 }
 
 void load_colors_from_file(char *filename) {
@@ -239,7 +241,7 @@ void load_colors_from_file(char *filename) {
 			color_palette_size++;
 	}
 
-	color_palette = (RGB *) malloc(color_palette_size * sizeof(RGB));
+	color_palette = (RGB *) calloc(color_palette_size, sizeof(RGB));
 	rewind(file);
 	for (int i = 0; i < color_palette_size; i++) {
 		fgets(line, sizeof(line), file);
@@ -249,9 +251,9 @@ void load_colors_from_file(char *filename) {
 }
 
 bool **generated_visited_matrix() {
-	bool **visited = malloc(height * sizeof(bool *));
+	bool **visited = calloc(height, sizeof(bool *));
 	for (int i = 0; i < height; i++)
-		visited[i] = malloc(width * sizeof(bool));
+		visited[i] = calloc(width, sizeof(bool));
 
 	return visited;
 }
