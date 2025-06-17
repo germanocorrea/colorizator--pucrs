@@ -236,6 +236,7 @@ void load_colors_from_file(char *filename) {
 	}
 
 	char line[13];
+	fgets(line, sizeof(line), file);
 	while (fgets(line, sizeof(line), file)) {
 		if (strlen(line) > 1)
 			color_palette_size++;
@@ -243,6 +244,7 @@ void load_colors_from_file(char *filename) {
 
 	color_palette = (RGB *) calloc(color_palette_size, sizeof(RGB));
 	rewind(file);
+	fgets(line, sizeof(line), file);
 	for (int i = 0; i < color_palette_size; i++) {
 		fgets(line, sizeof(line), file);
 		sscanf(line, "%d %d %d", &color_palette[i].r, &color_palette[i].g, &color_palette[i].b);
