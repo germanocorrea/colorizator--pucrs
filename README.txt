@@ -4,3 +4,4 @@ Integrante do grupo: Germano Bruscato Corrêa
 Matrícula: 24180395-6
 
 Link para o video: https://youtu.be/dqRl8EoGkro
+Link para a apresentação usada no video: https://youtu.be/dqRl8EoGkro
