@@ -395,12 +395,13 @@ void flood_fill_seed(
 }
 
 void apply_border_smoothing(RGB (*out)[width], Coordinate* region_member, int region_size) {
-	const int kernel_size = 3; // Tamanho do kernel de suavização
-	const float sigma = 1.0f; // Desvio padrão para o filtro gaussiano
+	const int kernel_size = 3;
+	const float sigma = 1.0f;
+	const float two_pi_sigma_sq = 2.0f * M_PI * sigma * sigma;
 
-	// Cria um buffer temporário para armazenar os resultados
-	RGB (*temp)[width] = calloc(height, sizeof(RGB[width]));
-	memcpy(temp, out, height * sizeof(RGB[width]));
+	// Uso um tmp pois pixeis com desfoque ja aplicado interferem no calculo de outros pixels
+	RGB (*tmp)[width] = calloc(height, sizeof(RGB[width]));
+	memcpy(tmp, out, height * sizeof(RGB[width]));
 
 	for (int i = 0; i < region_size; i++) {
 		const Coordinate c = region_member[i];
@@ -422,46 +423,39 @@ void apply_border_smoothing(RGB (*out)[width], Coordinate* region_member, int re
 			}
 		}
 
-		// Se for um pixel de borda, aplica a suavização
 		if (is_border) {
 			float r_sum = 0, g_sum = 0, b_sum = 0;
-			float weight_sum = 0;
+			float gaus_sum = 0;
 
-			// Aplica o kernel gaussiano
 			for (int dy = -kernel_size / 2; dy <= kernel_size / 2; dy++) {
 				for (int dx = -kernel_size / 2; dx <= kernel_size / 2; dx++) {
 					int nx = x + dx;
 					int ny = y + dy;
 
-					if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-						// Calcula o peso gaussiano
-						float distance = sqrt(dx * dx + dy * dy);
-						float weight = exp(-(distance * distance) / (2 * sigma * sigma));
+					float distance = sqrt(dx * dx + dy * dy);
+					float gaussian = ((1.0f / two_pi_sigma_sq) * expf(-(distance * distance) / (2 * sigma * sigma)));
+					gaus_sum += gaussian;
 
-						r_sum += out[ny][nx].r * weight;
-						g_sum += out[ny][nx].g * weight;
-						b_sum += out[ny][nx].b * weight;
-						weight_sum += weight;
-					}
+					r_sum += out[ny][nx].r * gaussian;
+					g_sum += out[ny][nx].g * gaussian;
+					b_sum += out[ny][nx].b * gaussian;
 				}
 			}
 
-			// Normaliza e atualiza o pixel
-			if (weight_sum > 0) {
-				temp[y][x].r = (unsigned char)(r_sum / weight_sum);
-				temp[y][x].g = (unsigned char)(g_sum / weight_sum);
-				temp[y][x].b = (unsigned char)(b_sum / weight_sum);
+			if (gaus_sum > 0) {
+				tmp[y][x].r = (unsigned char)(r_sum / gaus_sum);
+				tmp[y][x].g = (unsigned char)(g_sum / gaus_sum);
+				tmp[y][x].b = (unsigned char)(b_sum / gaus_sum);
 			}
 		}
 	}
 
-	// Copia o resultado de volta para a imagem original
 	for (int i = 0; i < region_size; i++) {
 		const Coordinate c = region_member[i];
-		out[c.y][c.x] = temp[c.y][c.x];
+		out[c.y][c.x] = tmp[c.y][c.x];
 	}
 
-	free(temp);
+	free(tmp);
 }
 
 void colorizeitor(const RGB (*in)[width], RGB (*out)[width]) {
