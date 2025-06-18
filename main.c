@@ -281,9 +281,9 @@ bool color_is_similar(RGB color_a, RGB color_b, const float tolerance) {
 int randomly_change_channel(int channel) {
 	int multiplier = (rand() % 2) * 2 - 1;
 	if (multiplier == -1) {
-		return channel + (rand() % ((255 - channel) / 2));
+		return channel + (rand() % (((255 - channel) / 2) ? : 1));
 	}
-	return channel - ((rand() % channel) / 2);
+	return channel - ((rand() % (channel ? : 1)) / 2);
 }
 
 RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_to_shade_of_gray_dict) {
