@@ -302,9 +302,12 @@ RGB get_color_from_palette(const RGB *shade_of_gray, ColorToShadeOfGray *color_t
 	} while (i < width * height);
 	color_to_shade_of_gray_dict[i] = (ColorToShadeOfGray){*shade_of_gray, color_palette[i % color_palette_size]};
 	if (i >= color_palette_size) {
-		color_to_shade_of_gray_dict[i].color.r = randomly_change_channel(color_to_shade_of_gray_dict[i].color.r);
-		color_to_shade_of_gray_dict[i].color.g = randomly_change_channel(color_to_shade_of_gray_dict[i].color.g);
-		color_to_shade_of_gray_dict[i].color.b = randomly_change_channel(color_to_shade_of_gray_dict[i].color.b);
+		if (rand() % 2 == 0) color_to_shade_of_gray_dict[i].color.r = randomly_change_channel(
+			color_to_shade_of_gray_dict[i].color.r);
+		if (rand() % 2 == 0) color_to_shade_of_gray_dict[i].color.g = randomly_change_channel(
+			color_to_shade_of_gray_dict[i].color.g);
+		if (rand() % 2 == 0) color_to_shade_of_gray_dict[i].color.b = randomly_change_channel(
+			color_to_shade_of_gray_dict[i].color.b);
 	}
 	return color_to_shade_of_gray_dict[i].color;
 }
